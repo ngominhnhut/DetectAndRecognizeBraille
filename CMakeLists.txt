@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.1)
+# Enable C++11
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+SET(OpenCV_DIR /home/ngo/OpenCV/installation/OpenCV-4.1.2/lib/cmake/opencv4)
+project(DetectAndRegconize)
+find_package(OpenCV REQUIRED)
+include_directories( ${OpenCV_INCLUDE_DIRS} include)
+add_executable( DetectAndRegconize src/DetectAndRegconize.cpp src/repmat.cpp src/rtGetInf.cpp src/rtGetNaN.cpp src/tiengviet.cpp src/rt_nonfinite.cpp src/tiengviet_initialize.cpp src/tiengviet_terminate.cpp)
+target_link_libraries(DetectAndRegconize ${OpenCV_LIBS})

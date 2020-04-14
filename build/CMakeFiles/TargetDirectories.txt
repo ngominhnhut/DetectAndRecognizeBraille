@@ -1,0 +1,3 @@
+/home/ngo/hk2_4/DetectAndRegconize/build/CMakeFiles/rebuild_cache.dir
+/home/ngo/hk2_4/DetectAndRegconize/build/CMakeFiles/DetectAndRegconize.dir
+/home/ngo/hk2_4/DetectAndRegconize/build/CMakeFiles/edit_cache.dir
