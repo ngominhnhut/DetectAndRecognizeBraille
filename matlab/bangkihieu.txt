@@ -1,0 +1,44 @@
+Test
+00- Ô
+01-	U
+02- Ă
+03- chữ số 
+04- I và số 9 
+05- Dấu chấm than
+06- Â
+07- Dấu nặng
+08- dấu huyền
+09- Viết hoa
+10- K
+11- khoảng trống
+12- dấu sắc
+13- Ư
+14- P
+15- G và số 7
+16- số 0
+17- chấm phẩy
+18- Y
+19- Q
+20- L
+21- C và số 3 
+22- chấm hỏi
+23- D và số 4
+24- Ê
+25- B và số 2
+26- O
+27- T
+28- V 
+29- M
+30- Chấm câu
+31- Chấm phẩy
+32- Đ
+33- Ơ
+34- H và số 8
+35- N
+36- dấu ngạch ngang và dấu ngã
+37- X
+38- R
+39- E và số 5 
+40- A và số 1
+41- dấu hai chấm
+42- S
