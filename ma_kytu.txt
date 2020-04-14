@@ -1,0 +1,54 @@
+00	dấu và
+01	dấu hỏi
+02	L
+03	dấu chấm câu
+04	dấu báo gạch chân cả chữ
+05	khoảng trống
+06	R
+07	y
+08	ă
+09	Y
+10	Ơ
+11	dấu phẩy
+12	u
+13	q
+14	i
+15	v
+16	dấu sắc
+17	B
+18	H
+19	dấu chấm phẩy
+20	m
+21	báo hoa chữ hy lạp
+22	k
+23	dấu báo in nghiêng
+24	Ê
+25	dấu đóng ngoặc kép
+26	số 0
+27	dấu hai chấm
+28	dấu ngã
+29	dấu báo số
+30	s
+31	dấu ngã
+32	dấu báo hết bài thơ
+33	e
+34	G
+35	N
+36	báo viết hoa
+37	â
+38	O
+39	dấu mơ ngoặc kép
+40	D
+41	dấu gạch chéo
+42	c
+43	dấu chéo
+44	ư
+45	dấu báo in đậm
+46	dấu chấm than
+47	dấu chẩm lửng
+48	dấu huyền
+49	ô
+50	p
+51	x
+52	Đ
+53	a
