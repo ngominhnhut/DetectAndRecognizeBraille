@@ -51,7 +51,7 @@ int main(int argc, const char* const*)
 	//Mat xoay = xoay_goc(recto);
 	Mat xoay = recto;
 	crop_hang_DR(xoay);
-	//am_thanh();
+	am_thanh();
 	std::string s = std::to_string(i);
 	imwrite("a/result"+s+".jpg",xoay);
 	cout<<"Finish"<<endl; 
