@@ -19,58 +19,231 @@
 
 #include "DetectAndRegconize.h"
 #include "rt_nonfinite.h"
-#include "tiengviet.h"
-#include "tiengviet_terminate.h"
-#include "tiengviet_initialize.h"
+#include "Recog_Braille.h"
+#include "Recog_Braille_terminate.h"
+#include "Recog_Braille_initialize.h"
 
 
 
 using namespace cv;
 using namespace std;
-void kt()
+
+
+void imadjust(const Mat1b& src, Mat1b& dst, int tol_low = 1, int tol_upp = 0, Vec2i in = Vec2i(0, 255), Vec2i out = Vec2i(0, 255))
 {
-	cout << "done"  << endl;
+    // explain : http://matlab.izmiran.ru/help/toolbox/images/enhanc17.html
+    // src : input CV_8UC1 image
+    // dst : output CV_8UC1 imge
+    // tol : tolerance, from 0 to 100.
+    // in  : src image bounds
+    // out : dst image bounds
+
+    dst = src.clone();
+
+    tol_low = max(0, min(100, tol_low));
+    tol_upp = max(0, min(100, tol_upp));
+    if (tol_low > 0 || tol_upp > 0)
+    {
+        // Compute in and out limits
+
+        // Histogram
+        vector<int> hist(256, 0);
+        for (int r = 0; r < src.rows; ++r) {
+            for (int c = 0; c < src.cols; ++c) {
+                hist[src(r,c)]++;
+            }
+        }
+
+        // Cumulative histogram
+        vector<int> cum = hist;
+        for (int i = 1; i < hist.size(); ++i) {
+            cum[i] = cum[i - 1] + hist[i];
+        }
+
+        // Compute bounds
+        int total = src.rows * src.cols;
+        int low_bound = total * tol_low / 100;
+        int upp_bound = total * (100- tol_upp) / 100;
+        in[0] = distance(cum.begin(), lower_bound(cum.begin(), cum.end(), low_bound));
+        in[1] = distance(cum.begin(), lower_bound(cum.begin(), cum.end(), upp_bound));
+
+    }
+
+    // Stretching
+    float scale = float(out[1] - out[0]) / float(in[1] - in[0]);
+    for (int r = 0; r < dst.rows; ++r)
+    {
+        for (int c = 0; c < dst.cols; ++c)
+        {
+            int vs = max(src(r, c) - in[0], 0);
+            int vd = min(int(vs * scale + 0.5f) + out[0], out[1]);
+            dst(r, c) = saturate_cast<uchar>(vd);
+        }
+    }
 }
 
-double GocToiUu(Mat thres3)// tìm góc tối uu voi moi buoc la 0.5 do, -10 -> 10 do
+Mat1b Preprocessing(Mat1b ImgIn, int mode = 0, String select_ROI = "Full")
 {
-	Mat imageskew;
-	double giatri = 0, h = 0, t = 0, theta = 0;
-	for (float i = -20; i <= 20; i++)
+	cout<<"Preprocessing..."<<endl;
+	Mat1b ImgOut;
+	Mat ImgResize;
+	if (ImgIn.cols < 550)
+		cv::resize(ImgIn, ImgResize, cv::Size(), 2, 2);
+	else 
+		ImgResize = ImgIn;
+	
+	Mat ImgSelect;
+	if ( select_ROI != "Full")
 	{
-		Point2f center(thres3.cols / 2, thres3.rows / 2); // find center
-		Mat matRot = getRotationMatrix2D(center, i / 2, 1);
-		warpAffine(thres3, imageskew, matRot, thres3.size());
-		for (int x = 0; x < imageskew.cols; x++)
-		{
-			for (int y = 0; y < imageskew.rows; y++)
-			{
-				Scalar intensity1 = imageskew.at<uchar>(y, x);
-				giatri += intensity1.val[0];
-			}
-			if (giatri <= 3*255)
-				h++;
-			giatri = 0;
-		}
-		cout << "h" << i/2 <<"=" << h << endl;
-		if (h >= t)
-		{
-			t = h;
-			theta = i / 2;
-		}
-		h = 0;
+		Rect r = selectROI(ImgResize);
+    	ImgSelect = ImgResize(r);
 	}
-	cout << "goc toi uu =" << theta << endl;
-	return theta;
+	else 
+		ImgSelect = ImgResize;
+
+	cout<<" Increasing the contrast of the image..."<<endl;	
+	if ( mode == 0)
+		// Adjust method (low = 2%, up = 0%)
+        imadjust(ImgSelect, ImgOut, 2, 0);
+	else
+		// Equation: g(x,y) = alpha*f(x,y) + beta (alpha = 2, beta = -170)
+		ImgOut = (2 * ImgSelect) - 170;	
+	return ImgOut; 
 }
 
-Mat xoay_goc(Mat imgin)
+int check_line(Mat ImgIn)
 {
-	Mat imgout;
-	Point2f center(imgin.cols / 2, imgin.rows / 2); // find center
-	Mat matRot = getRotationMatrix2D(center,GocToiUu(imgin), 1);
-	warpAffine(imgin, imgout, matRot, imgin.size());	
-	return imgout;
+	int count = 0, value = 0;
+	int width = ImgIn.cols; 
+	int height = ImgIn.rows;
+	for (int i = 0; i < height ; i++)
+	{
+		for (int j = 0; j < width; j++)
+		{
+			Scalar intensity = ImgIn.at<uchar>(i,j);
+			value += intensity.val[0];
+		}
+		if (value < 1000)
+			count ++;
+		value = 0; 
+	}
+	return count;
+}
+
+Mat skew_d(Mat ImgIn, double degrees)
+{
+	Mat ImgOut;
+	// find center
+	Point2f center(ImgIn.cols / 2, ImgIn.rows / 2); 
+	Mat matRot = getRotationMatrix2D(center, degrees, 1);
+	warpAffine(ImgIn, ImgOut, matRot, ImgIn.size());	
+	return ImgOut;
+}
+
+// xoay trái phải 4 độ
+double Rotation(Mat ImgIn)
+{
+	cout<<"Rotation..."<<endl;
+	double result = 0;
+	int value = ImgIn.rows;
+	// Rotation from -5 degrees to 5 degrees with step = 0.2 degrees
+	for (double i = -5; i <= 5; i+=0.2)
+	{
+		Mat ImgOut1 = skew_d(ImgIn, i - 4.0);
+		Mat ImgOut2 = skew_d(ImgIn, i + 4.0);
+		if(value > abs(check_line(ImgOut1)-check_line(ImgOut2)))\
+		{
+			result = i;
+			value = abs(check_line(ImgOut1)-check_line(ImgOut2));
+		}
+	}
+	cout<<"Degree = "<< result<<endl;
+	return result;
+}
+
+// count line method
+double Rotation2(Mat ImgIn)
+{
+	cout<<"Rotation2..."<<endl;
+	double result = 0;
+	int value = 0;
+	// Rotation from -5 degrees to 5 degrees with step = 0.2 degrees
+	for (double i = -5; i <= 5; i+=0.2)
+	{
+		Mat ImgOut = skew_d(ImgIn, i);
+		if(value < check_line(ImgOut))
+		{
+			result = i;
+			value = check_line(ImgOut);
+		}
+	}
+	cout<<"Degree = "<< result<<endl;
+	return result;
+}
+
+
+double Standard_deviation(Mat ImgIn)
+{
+	double average = 0;
+	double SD;
+	int value = 0, deviation, total, count;
+	int width = ImgIn.cols; 
+	int height = ImgIn.rows;
+	for (int i = 0; i < height ; i++)
+	{
+		total = 0; deviation = 0; count =0;
+		
+		// Total rows
+		for (int j = 0; j < width; j++)
+		{
+			Scalar intensity = ImgIn.at<uchar>(i,j);
+			value = intensity.val[0];
+			if (value > 250)
+				{
+					total += j;
+					count++;
+				}
+		}
+
+		if (count == 0)
+			continue;
+		else
+		{
+			average = total / count;
+			// Deviation
+			for (int j = 0; j < width; j++)
+			{
+				Scalar intensity = ImgIn.at<uchar>(i,j);
+				value = intensity.val[0];
+				if(value > 250)
+					deviation += pow(j - average,2);
+			}
+			
+			// Standard deviation
+			SD += pow(deviation / (width * height), 1/2);
+		}
+	}
+	return SD;
+}
+
+// Standard deviation method
+double Rotation3(Mat ImgIn)
+{
+	cout<<"Rotation3..."<<endl;
+	double result = 0;
+	double value = Standard_deviation(ImgIn);
+	// Rotation from -5 degrees to 5 degrees with step = 0.2 degrees
+	for (double i = -5; i <= 5; i+=0.2)
+	{
+		Mat ImgOut = skew_d(ImgIn, i);
+		if(value > Standard_deviation(ImgOut))
+		{
+			result = i;
+			value = Standard_deviation(ImgOut);
+		}
+	}
+	cout<<"Degree = "<< result<<endl;
+	return result;
 }
 
 int kt_so_cell(Mat in, int start)
@@ -94,7 +267,30 @@ int kt_so_cell(Mat in, int start)
 	return m;
 }
 
-void loi_lom(Mat In, Mat recto)
+Mat adaptive_Threshold(Mat ImgIn, int Thresh_binary = 0, int size_filter = 15, int c = 7, int dil = 1)
+{
+	Mat ImgOut;
+	
+	// binary adaptive threshold
+	if (Thresh_binary == 0)
+		adaptiveThreshold(ImgIn, ImgOut, 255, ADAPTIVE_THRESH_GAUSSIAN_C , THRESH_BINARY, size_filter, c); 
+	else 
+		adaptiveThreshold(ImgIn, ImgOut, 255, ADAPTIVE_THRESH_GAUSSIAN_C , THRESH_BINARY_INV, size_filter, c); 
+    
+   
+    // smoothing side 3x3
+	GaussianBlur(ImgOut, ImgOut, Size(3, 3), 0);
+	
+	// binary threshold 130
+    threshold(ImgOut, ImgOut, 130, 255, THRESH_BINARY);
+	
+	// dilate 
+    dilate(ImgOut, ImgOut, Mat(), Point(-1, -1), dil, 1, 1);
+	return ImgOut;
+}
+
+
+void Recto(Mat In, Mat recto)
 {
     int width = In.cols;
     int height = In.rows;
@@ -102,114 +298,89 @@ void loi_lom(Mat In, Mat recto)
     int r[6]={255,255,255,130,130,130};
     for (x=0; x< width;x++)
     	for (y=0; y< height-6; y++)
-	{
-	   for (int i=0; i<6; i++)
-	   {
-		Scalar pixel = In.at<uchar>(y+i, x);
-		if (pixel.val[0] == r[i])
-		    kt =1;
-		else
 		{
-		    kt =0;
-		    break;
-	        }
-  	   }   
-	   if (kt==1)
-	   {
-		kt =0;
-		for (int i =0; i<6; i++)
-		    recto.at<uchar>(Point(x,y+i)) = 255;
-		y=y+5;
-	   }		 
-	}
+	   		for (int i=0; i<6; i++)
+	   		{
+				Scalar pixel = In.at<uchar>(y+i, x);
+				if (pixel.val[0] == r[i])
+		    	kt =1;
+				else
+				{
+		    		kt =0;
+		    		break;
+	   			}
+  	   		}   
+	   		if (kt==1)
+	   		{
+				kt =0;
+				for (int i =0; i<6; i++)
+		    	recto.at<uchar>(Point(x,y+i)) = 255;
+				y=y+5;
+	   		}		 
+		}
 }
 
-void cat_nut(Mat In, Mat out)
+void Separate_the_dot(Mat In, Mat out)
 {
     int width = In.cols;
     int height = In.rows;
     int kt=0,t=0,x,y;
     for (x=0; x< width;x++)
     	for (y=0; y< height; y++)
-	{
-	   Scalar pixel = In.at<uchar>(y, x);  
-	   if (pixel.val[0] == 0)
-	   {
-		t=0;
-		kt=0;
-	   }
-	   else if (pixel.val[0] != t)
-	   {
-	   t=pixel.val[0];
-	   kt++;
-	   }
-	   if (kt>=3)
-	   {
-		kt =1; 
-		In.at<uchar>(Point(x,y)) = 0;}		 
-	   }
+		{
+	   		Scalar pixel = In.at<uchar>(y, x);  
+	   		if (pixel.val[0] == 0)
+	   		{
+				t=0;
+				kt=0;
+	   		}
+	   		else if (pixel.val[0] != t)
+	   		{
+	   			t=pixel.val[0];
+	   			kt++;
+	   		}
+	   		if (kt>=3)
+	   		{
+				kt =1; 
+				In.at<uchar>(Point(x,y)) = 0;}		 
+	   		}
     out =In;
 }
 
-void xu_ly_2mat(Mat imgs,Mat recto)
+Mat Separation_Of_Recto(Mat ImgIn)
 {
-//tìm vùng sáng (ngưỡng thích nghi, lọc nhiễu)  
-    Mat imgada2;
-    adaptiveThreshold(imgs, imgada2, 255, ADAPTIVE_THRESH_GAUSSIAN_C , THRESH_BINARY ,5,-7); 
-    GaussianBlur(imgada2, imgada2, Size(7, 7), 0);
-    threshold(imgada2,imgada2, 100, 255, THRESH_BINARY);
-    dilate(imgada2, imgada2, Mat(), Point(-1, -1), 1, 1, 1);
+	cout<<"Separation of recto and verso..."<<endl;
+	int width = ImgIn.cols;
+	int height = ImgIn.rows;   
+    Mat rec(height, width, CV_8UC1, Scalar(0));
 
-//tìm vùng tối (ngưỡng thích nghi, lọc nhiễu, +125) 
-    Mat imgada;
-    adaptiveThreshold(imgs, imgada, 255, ADAPTIVE_THRESH_GAUSSIAN_C , THRESH_BINARY_INV ,5,7);
-    GaussianBlur(imgada, imgada, Size(5, 5), 0);
-    threshold(imgada,imgada, 155, 255, THRESH_BINARY);
-    dilate(imgada, imgada, Mat(), Point(-1, -1), 3, 1, 1);
-    imgada =imgada -125;
-
-//ảnh có 3 mức 
-    Mat imgRe = imgada2|imgada;
-//phân những nút bị dính   
-    cat_nut(imgRe, imgRe);
-//tìm nút lồi theo mặt nạ 1x6 (255,255,255,125,125,125)   
-    loi_lom(imgRe, recto);
+	// shining
+    Mat shining = adaptive_Threshold(ImgIn, 0, 15, -7, 1);
+	imshow("shining", shining);
+	// dark
+    Mat dark = adaptive_Threshold(ImgIn, 1, 15, 7, 1);
+	imshow("dark", dark);
+	// 3 Threshold
+	dark = dark - 125;
+    Mat Img3Thr = shining|dark;
+	imshow("Img3Thr", Img3Thr);
+	//Separate the dot 
+    Separate_the_dot(Img3Thr, Img3Thr);
+	
+	//tìm nút recto theo mặt nạ 1x6 (255,255,255,125,125,125)  
+    Recto(Img3Thr, rec);
+	return rec;
 }
 
-void xu_ly_2mat_data(Mat imgs,Mat recto)
+void Get(Mat ImgIn, double IMAGE[560])
 {
-//tìm vùng sáng (ngưỡng thích nghi, lọc nhiễu)  
-    Mat imgada2;
-    adaptiveThreshold(imgs, imgada2, 255, ADAPTIVE_THRESH_GAUSSIAN_C , THRESH_BINARY ,5,-7); 
-    GaussianBlur(imgada2, imgada2, Size(7, 7), 0);
-    threshold(imgada2,imgada2, 50, 255, THRESH_BINARY);
-    dilate(imgada2, imgada2, Mat(), Point(-1, -1), 1, 1, 1);
-
-//tìm vùng tối (ngưỡng thích nghi, lọc nhiễu, +125) 
-    Mat imgada;
-    adaptiveThreshold(imgs, imgada, 255, ADAPTIVE_THRESH_GAUSSIAN_C , THRESH_BINARY_INV ,5,7);
-    GaussianBlur(imgada, imgada, Size(5, 5), 0);
-    threshold(imgada,imgada, 100, 255, THRESH_BINARY);
-    dilate(imgada, imgada, Mat(), Point(-1, -1), 3, 1, 1);
-    imgada =imgada -125;
-
-//ảnh có 3 mức 
-    Mat imgRe = imgada2|imgada;
-//phân những nút bị dính   
-    cat_nut(imgRe, imgRe);
-//tìm nút lồi theo mặt nạ 1x6 (255,255,255,125,125,125)   
-    loi_lom(imgRe, recto);
-}
-
-void Get(Mat imgin, double IMAGE[560])
-{
-	int M = imgin.size().height;	
-	int N = imgin.size().width;		
+	int M = ImgIn.size().height;	
+	int N = ImgIn.size().width;		
 	int x, y, i = 0, t;
 	for (x = 0; x < N; x++)
 		for (y = 0; y < M; y++)
 		{
-			IMAGE[i] = imgin.at<uchar>(y, x);
+			IMAGE[i] = ImgIn.at<uchar>(y, x);
 			i++;
 		}
 }
@@ -219,7 +390,7 @@ double regconize_char(Mat imgin)
 	cv::resize(imgin, imgin, cv::Size(20,28));
 	double IMAGE[560];
 	Get(imgin, IMAGE);
-	double result = tiengviet(IMAGE);
+	double result = Recog_Braille(IMAGE);
 	waitKey(0);	
 }
 
@@ -500,7 +671,7 @@ string printf_Recog(double res_regco)
 			break;
 		}
 		default:
-			result = "No_Regconize";
+			result = "No_Recognize";
 	}
 	return result;
 }
@@ -627,6 +798,8 @@ void am_thanh()
 {
 	system("espeak -v vi-vn-x-south -f /home/ngo/hk2_4/DetectAndRegconize/build/text.txt");		
 }
+
+
 
 
 
