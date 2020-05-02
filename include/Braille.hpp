@@ -103,11 +103,12 @@ Mat1b Preprocessing(Mat1b ImgIn, int mode = 0, String select_ROI = "Full")
 
 	cout<<" Increasing the contrast of the image..."<<endl;	
 	if ( mode == 0)
-		// Adjust method (low = 2%, up = 0%)
-        imadjust(ImgSelect, ImgOut, 2, 0);
+		// Adjust method (low = 1%, up = 0%)
+        imadjust(ImgSelect, ImgOut, 1, 0);
 	else
 		// Equation: g(x,y) = alpha*f(x,y) + beta (alpha = 2, beta = -170)
-		ImgOut = (2 * ImgSelect) - 170;	
+		ImgOut = (2 * ImgSelect) - 170;
+	GaussianBlur(ImgOut, ImgOut, Size(3, 3), 0);	
 	return ImgOut; 
 }
 
@@ -157,7 +158,7 @@ double Rotation(Mat ImgIn)
 			value = abs(check_line(ImgOut1)-check_line(ImgOut2));
 		}
 	}
-	cout<<"Degree = "<< result<<endl;
+	cout<<" Degree = "<< result<<endl;
 	return result;
 }
 
@@ -177,7 +178,7 @@ double Rotation2(Mat ImgIn)
 			value = check_line(ImgOut);
 		}
 	}
-	cout<<"Degree = "<< result<<endl;
+	cout<<" Degree = "<< result<<endl;
 	return result;
 }
 
@@ -242,29 +243,8 @@ double Rotation3(Mat ImgIn)
 			value = Standard_deviation(ImgOut);
 		}
 	}
-	cout<<"Degree = "<< result<<endl;
+	cout<<" Degree = "<< result<<endl;
 	return result;
-}
-
-int kt_so_cell(Mat in, int start)
-{
-	int m=0;
-	cv::CascadeClassifier cascade;
-	if (!cascade.load("classifier/cascade.xml")) 
-	{
-		std::cout << "Error when loading the cascade classfier!"
-			<< std::endl;	
-		return -1;
-	}
-	std::vector< Rect >  detections;
-	for (int x = start; x < in.cols - 25; x+=30)
-	{
-		Mat cut = in(Rect(x, 0,25,in.rows));
-		cascade.detectMultiScale(cut, detections, 1.05, 3, 0, cv::Size(24, 34), cv::Size(25, 38));
-		if (detections.size() >= 1)
-			m++;
-	}
-	return m;
 }
 
 Mat adaptive_Threshold(Mat ImgIn, int Thresh_binary = 0, int size_filter = 15, int c = 7, int dil = 1)
@@ -277,7 +257,7 @@ Mat adaptive_Threshold(Mat ImgIn, int Thresh_binary = 0, int size_filter = 15, i
 	else 
 		adaptiveThreshold(ImgIn, ImgOut, 255, ADAPTIVE_THRESH_GAUSSIAN_C , THRESH_BINARY_INV, size_filter, c); 
     
-   
+
     // smoothing side 3x3
 	GaussianBlur(ImgOut, ImgOut, Size(3, 3), 0);
 	
@@ -344,7 +324,7 @@ void Separate_the_dot(Mat In, Mat out)
 				kt =1; 
 				In.at<uchar>(Point(x,y)) = 0;}		 
 	   		}
-    out =In;
+    out = In;
 }
 
 Mat Separation_Of_Recto(Mat ImgIn)
@@ -355,15 +335,17 @@ Mat Separation_Of_Recto(Mat ImgIn)
     Mat rec(height, width, CV_8UC1, Scalar(0));
 
 	// shining
-    Mat shining = adaptive_Threshold(ImgIn, 0, 15, -7, 1);
-	imshow("shining", shining);
+    Mat shining = adaptive_Threshold(ImgIn, 0, 5, -8, 2);
+	
+
 	// dark
-    Mat dark = adaptive_Threshold(ImgIn, 1, 15, 7, 1);
-	imshow("dark", dark);
+    Mat dark = adaptive_Threshold(ImgIn, 1, 5, 8, 2);
+	
+
 	// 3 Threshold
 	dark = dark - 125;
     Mat Img3Thr = shining|dark;
-	imshow("Img3Thr", Img3Thr);
+
 	//Separate the dot 
     Separate_the_dot(Img3Thr, Img3Thr);
 	
@@ -385,20 +367,20 @@ void Get(Mat ImgIn, double IMAGE[560])
 		}
 }
 
-double regconize_char(Mat imgin)
+double recognize_char(Mat ImgIn)
 {
-	cv::resize(imgin, imgin, cv::Size(20,28));
+	cv::resize(ImgIn, ImgIn, cv::Size(20,28));
 	double IMAGE[560];
-	Get(imgin, IMAGE);
+	Get(ImgIn, IMAGE);
 	double result = Recog_Braille(IMAGE);
 	waitKey(0);	
 }
 
-string printf_Recog(double res_regco)
+String convert_to_char(double num)
 {
 	string result;
-	int kt = res_regco -1;
-	switch (kt)
+	int temp = num - 1;
+	switch (temp)
 	{
 		case 0:
 		{
@@ -687,116 +669,144 @@ void write_txt(cv::String in)
   else cout << "Unable to open file";
 }
 
-int kt_cell(Mat imgin)
+int kt_cell(Mat ImgIn)
 {
-	int result = (imgin.rows-36)/2, giatri;
-	for (int x = 0; x < imgin.rows-38; x++)
+	int result = (ImgIn.rows-36)/2, value;
+	for (int x = 0; x < ImgIn.rows-38; x++)
 	{
-		giatri=0;
-		for (int y = 0; y < imgin.cols; y++)
+		value = 0;
+		for (int y = 0; y < ImgIn.cols; y++)
 		{
-			Scalar intensity1 = imgin.at<uchar>(x, y);
-			giatri += intensity1.val[0];
+			Scalar intensity1 = ImgIn.at<uchar>(x, y);
+			value += intensity1.val[0];
 		}
-		if (giatri > 255)
+		if (value > 255)
 		{
-			result =x-3;
+			result = x - 3;
 			break;
 		}
-		for (int y = 0; y < imgin.cols; y++)
+		for (int y = 0; y < ImgIn.cols; y++)
 		{
-			Scalar intensity1 = imgin.at<uchar>(imgin.rows-x, y);
-			giatri += intensity1.val[0];
+			Scalar intensity1 = ImgIn.at<uchar>(ImgIn.rows-x, y);
+			value += intensity1.val[0];
 		}
-		if (giatri > 255)
+		if (value > 255)
 		{
-			result = imgin.rows-(x+32);
+			result = ImgIn.rows-(x+32);
 			break;
 		}
 	}
 	return result;
 }
 
-String Detect_Regco(Mat imgin)
-{
-	double result;
-	cv::String te, text;
-	int m = 0, t=0, t2=0;
-	// tìm điểm bắt đầu (t2)
-	for (int i =0; i<30;i++)
-	{
-		m = kt_so_cell(imgin,i);
-		if (m>t)
-		{
-			t=m;
-			t2=i;
-		}
-	}
-	// cửa sổ chạy kt cell
-	for (int x = t2; x < imgin.cols - 25; x=x+30)
-	{
-		Rect windows(x, 0, 25, imgin.rows);
-		Mat cell = imgin( windows);
-		Rect windows2(x, kt_cell(cell), 25, 35);
-		cell = imgin( windows2);
-		
-		result = regconize_char(cell);
-		cout << printf_Recog(result);
-		te = text;
-		text = te+printf_Recog(result);	
-		rectangle(imgin, windows2, Scalar(255), 1, 8, 0);
-	}
-	cout << endl;
-	return text+"\n";
-}
-
 void data_augment(Mat In, Mat Out, int randx, int randy, int angle)
 {
     Point2f center(In.cols / 2, In.rows / 2); // find center
-    Mat matRot = getRotationMatrix2D(center,angle, 1);
+    Mat matRot = getRotationMatrix2D(center, angle, 1);
     warpAffine(In, In, matRot, In.size());
     int width = In.cols;
     int height = In.rows;
-    for (int x=0; x< width;x++)
-    	for (int y=0; y< height; y++)
+    for (int x = 0; x < width; x++)
+    	for (int y = 0; y < height; y++)
 	{
 		Scalar pixel = In.at<uchar>(y, x);
-		if (x+randx>=0 && x+randx<width && y+randy>=0 && y+randy<height)
-		Out.at<uchar>(Point(x+randx,y+randy)) = pixel.val[0]; 
+		if (x+randx >= 0 && x+randx < width && y+randy >= 0 && y+randy < height)
+		Out.at<uchar>(Point(x+randx, y+randy)) = pixel.val[0]; 
 	}
 }
 
-void crop_hang_DR(Mat imgin)
-{
-	int name =0;
-	cv::String text, t;
-	vector<Mat> crop;
-	int giatri = 0,i=0;
-	for (int x = 0; x < imgin.rows; x++)
-	{
-		giatri=0;
-		for (int y = 0; y < imgin.cols; y++)
-		{
-			Scalar intensity1 = imgin.at<uchar>(x, y);
-			giatri += intensity1.val[0];
-		}
-		if (giatri > 255)
-		{
-			Mat aa = imgin(cv::Rect(0, x-5, imgin.cols, 45));
-			crop.push_back(aa);
-			t = text;
-			text = t + Detect_Regco(aa);
-			i++;
-			x+=45;
-		}
-		imwrite("a/???.jpg",imgin); 
-	}
-	write_txt(text);
-}
-
-void am_thanh()
+void make_sound()
 {
 	system("espeak -v vi-vn-x-south -f /home/ngo/hk2_4/DetectAndRegconize/build/text.txt");		
+}
+
+vector<Mat> Line(Mat ImgIn)
+{
+	vector<Mat> line;
+	int value = 0;
+	int width = ImgIn.cols; 
+	int height = ImgIn.rows;
+	for (int x = 0; x < height ; x++)
+	{
+		for (int y = 0; y < width; y++)
+		{
+			Scalar intensity = ImgIn.at<uchar>(x,y);
+			value += intensity.val[0];
+		}
+		if (value > 8*255 && (x+40) < height && (x - 5) > 0)
+		{
+			line.push_back(ImgIn(cv::Rect(0, x-5, width, 45)));
+			x+=45;
+		}
+		value = 0; 
+	}
+	return line;
+}
+
+
+int num_cell(Mat ImgIn, int start)
+{
+	int count = 0;
+	cv::CascadeClassifier cascade;
+	if (!cascade.load("classifier/cascade.xml")) 
+	{
+		std::cout << "Error when loading the cascade classfier!" << std::endl;	
+		return -1;
+	}
+	std::vector< Rect >  detections;
+	for (int x = start; x < ImgIn.cols - 25; x+=30)
+	{
+		Mat cell = ImgIn(Rect(x, 0,25,ImgIn.rows));
+		cascade.detectMultiScale(cell, detections, 1.05, 3, 0, cv::Size(24, 34), cv::Size(25, 38));
+		if (detections.size() >= 1)
+			count++;
+	}
+	return count;
+}
+
+vector<Mat> Cell(Mat ImgIn)
+{
+	vector<Mat> cell;
+	int num = 0, temp=0, point_start=0;
+	
+	// fine point start 
+	for (int i =0; i<30;i++)
+	{
+		num = num_cell(ImgIn,i);
+		if (num > temp)
+		{
+			temp = num;
+			point_start = i;
+		}
+	}
+	// cut cell
+	for (int x = point_start; x < ImgIn.cols - 25; x=x+30)
+	{
+		Mat cell_raw = ImgIn(Rect(x, 0, 25, ImgIn.rows));
+		Rect windows(x, kt_cell(cell_raw), 25, 35);
+		cell.push_back(ImgIn( windows));
+		rectangle(ImgIn, windows, Scalar(255), 1, 8, 0);
+	}
+	return cell;
+}
+
+String Detection_recognize(Mat ImgIn)
+{
+	cout<<"Detection and recognize..."<<endl;
+	String results, temp;
+	vector<Mat> line;
+	vector<Mat> cell;
+	line = Line(ImgIn);
+	for(int i = 0; i < line.size(); i++)
+	{
+		cell = Cell(line[i]);
+		for(int j = 0; j < cell.size(); j++)
+		{
+			results += convert_to_char(recognize_char(cell[j]));
+		}
+		results += "\n";
+	}
+	return results;
 }
 
 

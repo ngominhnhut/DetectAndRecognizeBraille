@@ -19,42 +19,50 @@
 #include "Braille.hpp"
 #include "DetectAndRegconize.h"
 #include "rt_nonfinite.h"
-#include "tiengviet.h"
-#include "tiengviet_terminate.h"
-#include "tiengviet_initialize.h"
+#include "Recog_Braille.h"
+#include "Recog_Braille_terminate.h"
+#include "Recog_Braille_initialize.h"
 
 
 using namespace std;
 using namespace cv;
 
+
 int main(int argc, const char* const*)
 {
     vector<cv::String> fn;
-    glob("input1.jpg", fn, false);
+    glob("input.jpg", fn, false);
     vector<Mat> img;
-    size_t count = fn.size(); //number of png files in images folder
+	//number of png files in images folder
+    size_t count = fn.size(); 
     for (size_t i=0; i<count; i++)
     {
-	img.push_back(imread(fn[i],IMREAD_GRAYSCALE));
-	Mat imgs = img[i];
-	int name=0;
-	//Rect r = selectROI(img2);
-    	//Mat imgs = img2(r);
-    	
-	imgs = (imgs*2)-170; 
-	int width = imgs.cols;
-    	int height = imgs.rows;   
-    	Mat recto(height, width, CV_8UC1, Scalar(0));
-	xu_ly_2mat(imgs,recto);
-	cout<<"successful preprocessing"<<endl;
+		img.push_back(imread(fn[i],IMREAD_GRAYSCALE));
+		Mat ImgIn = img[i];
+		
+		// Preprocessing 
+		Mat1b Preprocessed = Preprocessing(ImgIn, 1, "Full");
+		
+		// Separation of recto and verso
+		Mat ImgRecto = Separation_Of_Recto(Preprocessed);
 
-	//Mat xoay = xoay_goc(recto);
-	Mat xoay = recto;
-	crop_hang_DR(xoay);
-	am_thanh();
-	std::string s = std::to_string(i);
-	imwrite("a/result"+s+".jpg",xoay);
-	cout<<"Finish"<<endl; 
+		// skew
+		Mat ImgSkew = skew_d(ImgRecto, Rotation3(ImgRecto));
+
+		// Detection and Recognize Braille
+		String txt = Detection_recognize(ImgSkew);
+		cout<<txt<<endl;
+		
+		// Create file text
+		write_txt(txt);
+
+		// make sound
+		make_sound();
+
+		cout<<"Successful..."<<endl;
+		imshow("result", ImgSkew);
+		imshow("Images", ImgIn);
+		waitKey(0); 
     }
 return 0;
 }
