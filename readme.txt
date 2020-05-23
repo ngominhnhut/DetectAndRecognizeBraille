@@ -5,22 +5,7 @@
 
 
 Final project (hk2 năm 4)
-Thiết Bị Hỗ Trợ Người Khiếm Thị
-
-TIẾN ĐỘ
-- Preporcessing
-	+ Take a picture.
-	+ Tăng độ tương phản.(Done)
-	+ Adaptive gaussian thresholding.(Done)
-	+ Xoay.(Done)
-	+ tách hàng.
-- Detect.(done)
-	+ Sliding windown theo khoản cách phù hợp.(Done)
-	+ Haar cascade detect.(Done)
-- Recognize(khá ổn nhung van sai)
-- chuyển thành âm thanh(done)
-	+ text.(thiếu dấu ',`,?,~,., quy tắc viết)
-	+ espeak.(Done)
+Thiết Bị Hỗ Trợ Người Khiếm Thị 
 
 
 	Preprocessing: Mat Preprocessed = Preprocessing(Mat ImgIn,int mode,String Select_ROI);
