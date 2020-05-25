@@ -1,11 +1,16 @@
+//linux 18.04
 //C++
 //Opencv4.12
 //espeak
 
+Final project
+Thiết Bị Hỗ Trợ Người Khiếm Thị (Recognition of Double Sided Vietnamese Braille Documents)
 
 
-Final project (hk2 năm 4)
-Thiết Bị Hỗ Trợ Người Khiếm Thị 
+$ cd build
+$ Cmake ..
+$ make
+$ ./DetectAndRecognize
 
 
 	Preprocessing: Mat Preprocessed = Preprocessing(Mat ImgIn,int mode,String Select_ROI);
