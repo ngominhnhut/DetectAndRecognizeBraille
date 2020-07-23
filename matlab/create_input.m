@@ -49,3 +49,11 @@ input = double(input);
 target = double(target);
 save('input.mat','input');
 save('target.mat','target');
+
+%% Test 
+load('net0041.mat');
+Result = net(input);
+[M, I] = max(Result);
+[Mt, It] = max(target);
+res = I ~= It;
+che = find(res == 1);

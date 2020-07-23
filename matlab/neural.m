@@ -18,18 +18,18 @@ t = target;
 trainFcn = 'trainscg';  % Scaled conjugate gradient backpropagation.
 
 % Create a Pattern Recognition Network
-hiddenLayer1Size = 360;
-hiddenLayer2Size = 224;
-hiddenLayer3Size = 105;
+hiddenLayer1Size = 280;
+hiddenLayer2Size = 162;
 
 
-net = patternnet([hiddenLayer1Size hiddenLayer2Size hiddenLayer3Size], trainFcn);
+
+net = patternnet([hiddenLayer1Size hiddenLayer2Size], trainFcn);
 
 
 % Setup Division of Data for Training, Validation, Testing
-net.divideParam.trainRatio = 70/100;
-net.divideParam.valRatio = 15/100;
-net.divideParam.testRatio = 15/100;
+net.divideParam.trainRatio = 80/100;
+net.divideParam.valRatio = 10/100;
+net.divideParam.testRatio = 10/100;
 
 % Train the Network
 [net,tr] = train(net,x,t);

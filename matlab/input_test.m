@@ -21,5 +21,6 @@ for i=1:length(img_files)
 end
 input = double(input);
 %% Test 
-load('net_final.mat');
+load('net0096.mat');
 Result = net(input);
+[M, I] = max(Result);
